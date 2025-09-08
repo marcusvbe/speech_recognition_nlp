@@ -3,12 +3,13 @@
 Descrição em Alto Nível do Projeto
 O sistema de reconhecimento de fala em inglês para PLN implementa um fluxo completo para capturar fala, transcrevê-la e analisar problemas comuns para processamento de linguagem natural.
 
+
 Arquitetura
 O projeto segue uma arquitetura modular com três componentes principais:
 
 speech_recognizer.py: Responsável pela captura e transcrição de áudio
 nlp_analyzer.py: Analisa o texto transcrito para identificar desafios de PLN
-main.py: Interface principal que coordena o fluxo de trabalho
+
 
 Bibliotecas Utilizadas
 
@@ -20,11 +21,6 @@ PyAudio: Biblioteca para entrada e saída de áudio baseada no PortAudio, manipu
 
 keyboard: Permite detecção de teclas pressionadas para controlar início/fim da gravação
 
-Processamento de Linguagem Natural
-
-NLTK (Natural Language Toolkit): Utilizada para tokenização e análise básica de texto
-
-spaCy: Framework avançado de PLN que fornece análise linguística (POS tagging, reconhecimento de entidades, etc.)
 
 Fluxo de Funcionamento
 
@@ -50,7 +46,7 @@ Os resultados são exibidos, mostrando tanto a transcrição quanto os problemas
 
 2. **Problemas para PLN Identificados**  
    - **Homófonos**: to/too/two, there/their/they're  
-   - **Ausência de pontuação**  
+   - **Problemas de pontuação**/**segmentação**
 
 
 ## Pré-requisitos
@@ -91,8 +87,6 @@ python main.py
   Classe que faz captura de áudio e transcrição usando Google Speech API.  
 - `src/nlp_analyzer.py`  
   Análise de transcrições para identificar problemas de PLN.  
-- `examples/problematic_cases.py`  
-  Demonstração de casos problemáticos de transcrição para PLN.  
 - `requirements.txt`  
   Lista de dependências Python.  
 
