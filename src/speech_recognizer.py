@@ -1,126 +1,147 @@
 import speech_recognition as sr
-
-from typing import Optional
-import json
+import pyaudio
 import keyboard
+import time
+import threading
 
 class SpeechRecognizer:
-    """Classe para reconhecimento de fala em inglês usando Google Speech API"""
-    
     def __init__(self):
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()
+        self.is_recording = False
+        self.audio_data = None
         
-        # Configurações otimizadas
-        self.recognizer.energy_threshold = 4000  # Aumentado para reduzir ruído
+        # Configurações mais sensíveis
+        self.recognizer.energy_threshold = 300
         self.recognizer.dynamic_energy_threshold = True
-        self.recognizer.pause_threshold = 1.0    # Mais tempo para pausas
-        self.recognizer.phrase_threshold = 0.3   # Sensibilidade de frase
-        self.recognizer.non_speaking_duration = 0.8  # Tempo de silêncio
+        self.recognizer.pause_threshold = 0.8
+        self.recognizer.phrase_threshold = 0.3
         
-        # Ajustar para ruído ambiente
+        # Ajusta para ruído ambiente
         print("Ajustando para ruído ambiente...")
         with self.microphone as source:
-            self.recognizer.adjust_for_ambient_noise(source, duration=2)
-        print("Pronto para reconhecimento!")
+            self.recognizer.adjust_for_ambient_noise(source, duration=1)
+        
+        print(f"✅ Reconhecedor inicializado. Energia: {self.recognizer.energy_threshold}")
     
-    def listen_and_transcribe(self, timeout=10) -> Optional[str]:
-        """
-        Escuta áudio do microfone e transcreve para texto usando Google Speech
-        """
+    def listen_for_speech(self):
+        """Método simplificado para captura"""
+        print("Pressione e SEGURE SPACE para gravar...")
+        
+        # Espera pressionar SPACE
+        while not keyboard.is_pressed('space'):
+            time.sleep(0.1)
+        
+        print("🔴 GRAVANDO... (solte SPACE para parar)")
+        
+        # Grava enquanto SPACE está pressionado
+        self.is_recording = True
+        self.audio_data = None
+        
+        # Inicia gravação em thread
+        record_thread = threading.Thread(target=self._continuous_record)
+        record_thread.start()
+        
+        # Espera soltar SPACE
+        while keyboard.is_pressed('space'):
+            time.sleep(0.1)
+        
+        print("⏹️ Parando gravação...")
+        self.is_recording = False
+        
+        # Espera thread terminar
+        record_thread.join(timeout=3)
+        
+        return self.audio_data
+    
+    def _continuous_record(self):
+        """Grava continuamente enquanto is_recording for True"""
         try:
-            print("🎤 Pressione SPACE para iniciar gravação...")
-            keyboard.wait('space')
-            
-            print("🔴 Gravando... (pressione SPACE novamente para parar)")
-            
             with self.microphone as source:
-                audio_data = []
+                print("🎤 Microfone ativo...")
                 
-                while True:
+                # Inicia gravação
+                audio_frames = []
+                
+                while self.is_recording:
                     try:
-                        # Grava em pequenos chunks
-                        audio_chunk = self.recognizer.listen(source, timeout=0.5, phrase_time_limit=0.5)
-                        audio_data.append(audio_chunk)
+                        # Grava pequenos chunks
+                        audio_chunk = self.recognizer.listen(
+                            source, 
+                            timeout=0.5, 
+                            phrase_time_limit=0.5
+                        )
+                        audio_frames.append(audio_chunk.frame_data)
                         
-                        # Verifica se SPACE foi pressionado novamente
-                        if keyboard.is_pressed('space'):
-                            break
-                            
                     except sr.WaitTimeoutError:
-                        # Continua gravando se não há timeout crítico
-                        if keyboard.is_pressed('space'):
-                            break
+                        # Timeout é normal, continua gravando
                         continue
-            
-            print("⏹️ Gravação finalizada. Processando...")
-            
-            # Combina os chunks de áudio (usando o último chunk por simplicidade)
-            if audio_data:
-                audio = audio_data[-1] if len(audio_data) == 1 else audio_data[0]
+                    except Exception as e:
+                        print(f"Erro durante gravação: {e}")
+                        break
                 
-                # Usar Google Speech Recognition
-                text = self.recognizer.recognize_google(audio, language='en-US')
-                
-                if text:
-                    print("✅ Reconhecimento concluído via Google Speech")
-                    return text.lower()
+                # Junta todos os chunks de áudio
+                if audio_frames:
+                    print(f"✅ Capturados {len(audio_frames)} chunks de áudio")
+                    
+                    # Combina todos os frames
+                    combined_audio = b''.join(audio_frames)
+                    
+                    # Cria AudioData com os frames combinados
+                    self.audio_data = sr.AudioData(
+                        combined_audio, 
+                        source.SAMPLE_RATE, 
+                        source.SAMPLE_WIDTH
+                    )
                 else:
-                    print("❌ Google Speech não conseguiu reconhecer")
-                    return None
-            else:
-                print("❌ Nenhum áudio capturado")
-                return None
-                
-        except sr.RequestError as e:
-            print(f"❌ Erro na requisição ao Google Speech: {e}")
-            return None
-        except sr.UnknownValueError:
-            print("❌ Google Speech não conseguiu entender o áudio")
-            return None
+                    print("❌ Nenhum áudio capturado")
+                    
         except Exception as e:
             print(f"❌ Erro na captura de áudio: {e}")
-            return None
     
-    def transcribe_from_file(self, audio_file_path: str) -> Optional[str]:
-        """Transcreve áudio de um arquivo usando Google Speech"""
+    def transcribe_audio(self, audio_data, language="en-US"):
+        """Transcreve áudio usando Google Speech Recognition"""
+        if audio_data is None:
+            return "Nenhum áudio para transcrever."
+        
         try:
-            with sr.AudioFile(audio_file_path) as source:
-                audio = self.recognizer.record(source)
-            
-            print("🔄 Transcrevendo arquivo com Google Speech...")
-            text = self.recognizer.recognize_google(audio, language='en-US')
-            
-            if text:
-                print("✅ Transcrição concluída via Google Speech")
-                return text.lower()
-            else:
-                return None
-            
-        except sr.RequestError as e:
-            print(f"❌ Erro na requisição ao Google Speech: {e}")
-            return None
+            print("🌐 Transcrevendo áudio...")
+            text = self.recognizer.recognize_google(audio_data, language=language)
+            print("✅ Transcrição concluída!")
+            return text
+        
         except sr.UnknownValueError:
-            print("❌ Google Speech não conseguiu entender o áudio do arquivo")
-            return None
+            return "Não foi possível entender o áudio."
+        except sr.RequestError as e:
+            return f"Erro no serviço de reconhecimento: {e}"
         except Exception as e:
-            print(f"❌ Erro ao transcrever arquivo: {e}")
-            return None
+            return f"Erro na transcrição: {e}"
     
-    def get_available_microphones(self):
-        """Lista microfones disponíveis"""
-        print("Microfones disponíveis:")
-        for i, mic_name in enumerate(sr.Microphone.list_microphone_names()):
-            print(f"{i}: {mic_name}")
+    def save_audio_to_file(self, audio_data, filename):
+        """Salva áudio em arquivo WAV"""
+        if audio_data is None:
+            return False
+        
+        try:
+            with open(filename, "wb") as f:
+                f.write(audio_data.get_wav_data())
+            print(f"💾 Áudio salvo em: {filename}")
+            return True
+        except Exception as e:
+            print(f"❌ Erro ao salvar áudio: {e}")
+            return False
     
     def test_microphone(self):
-        """Testa o microfone"""
-        print("Teste de microfone - diga algo:")
+        """Testa se o microfone está funcionando"""
         try:
+            print("🧪 Testando microfone (2 segundos)...")
             with self.microphone as source:
-                audio = self.recognizer.listen(source, timeout=5, phrase_time_limit=3)
-            print("✅ Áudio capturado com sucesso")
-            return True
+                audio = self.recognizer.listen(source, timeout=2, phrase_time_limit=2)
+                print("✅ Microfone capturou áudio!")
+                return True
+        except sr.WaitTimeoutError:
+            print("⚠️ Timeout - microfone pode estar sem entrada")
+            return False
         except Exception as e:
             print(f"❌ Erro no teste do microfone: {e}")
             return False

@@ -24,25 +24,68 @@ class NLPAnalyzer:
         # Dicionário de homófonos comuns em inglês
         self.homophones = {
             'to': ['too', 'two'],
-            'there': ['their', 'they\'re'],
-            'your': ['you\'re'],
-            'its': ['it\'s'],
-            'hear': ['here'],
-            'write': ['right', 'rite'],
-            'new': ['knew'],
-            'four': ['for', 'fore'],
-            'eight': ['ate'],
-            'one': ['won'],
-            'sun': ['son'],
-            'flower': ['flour'],
-            'break': ['brake'],
-            'pears': ['pairs'],
-            'pair': ['pear'],
+            'too': ['to', 'two'],
             'two': ['to', 'too'],
+            'there': ['their', 'they\'re'],
+            'their': ['there', 'they\'re'],
+            'they\'re': ['there', 'their'],
+            'your': ['you\'re'],
+            'you\'re': ['your'],
+            'its': ['it\'s'],
+            'it\'s': ['its'],
+            'hear': ['here'],
+            'here': ['hear'],
+            'write': ['right', 'rite'],
+            'right': ['write', 'rite'],
+            'rite': ['write', 'right'],
+            'new': ['knew'],
+            'knew': ['new'],
+            'four': ['for', 'fore'],
+            'for': ['four', 'fore'],
+            'fore': ['four', 'for'],
+            'eight': ['ate'],
             'ate': ['eight'],
+            'one': ['won'],
+            'won': ['one'],
+            'sun': ['son'],
+            'son': ['sun'],
+            'flower': ['flour'],
+            'flour': ['flower'],
+            'break': ['brake'],
+            'brake': ['break'],
+            'pears': ['pairs'],
+            'pairs': ['pears'],
+            'pair': ['pear'],
+            'pear': ['pair'],
             'sea': ['see'],
+            'see': ['sea'],
             'meat': ['meet'],
-            'peace': ['piece']
+            'meet': ['meat'],
+            'peace': ['piece'],
+            'piece': ['peace'],
+            'no': ['know'],
+            'know': ['no'],
+            'by': ['buy', 'bye'],
+            'buy': ['by', 'bye'],
+            'bye': ['by', 'buy'],
+            'read': ['red'],
+            'red': ['read'],
+            'tail': ['tale'],
+            'tale': ['tail'],
+            'mail': ['male'],
+            'male': ['mail'],
+            'sail': ['sale'],
+            'sale': ['sail'],
+            'wait': ['weight'],
+            'weight': ['wait'],
+            'weak': ['week'],
+            'week': ['weak'],
+            'steel': ['steal'],
+            'steal': ['steel'],
+            'bear': ['bare'],
+            'bare': ['bear'],
+            'fair': ['fare'],
+            'fare': ['fair']
         }
         
         # Frases problemáticas conhecidas para segmentação
@@ -52,8 +95,121 @@ class NLPAnalyzer:
             r"come and eat \w+",
             r"time to eat \w+",
         ]
-        
     
+    def analyze_speech_text(self, text: str) -> Dict:
+        """
+        Analisa texto de fala para problemas de PLN
+        
+        Args:
+            text: Texto transcrito do reconhecimento de fala
+            
+        Returns:
+            Dicionário com análise dos problemas encontrados
+        """
+        problems = {
+            'original_text': text,
+            'homophones': self._find_homophones(text),
+            'punctuation': self._check_punctuation_problems(text),
+            'segmentation': self._check_segmentation(text)
+        }
+        return problems
+    
+    def display_detailed_analysis(self, problems: Dict):
+        """Exibe análise detalhada dos problemas encontrados"""
+        text = problems['original_text']
+        
+        print(f"\n{'='*60}")
+        print(f"📝 TEXTO TRANSCRITO: '{text}'")
+        print(f"{'='*60}")
+        
+        total_problems = 0
+        
+        # Homófonos
+        if problems['homophones']:
+            print("\n🔄 HOMÓFONOS DETECTADOS:")
+            for h in problems['homophones']:
+                print(f"   ⚠️  Palavra: '{h['word']}'")
+                print(f"   🤔 Pode ser confundida com: {', '.join(h['alternatives'])}")
+                total_problems += 1
+        
+        # Segmentação (vírgulas)
+        if problems['segmentation']['has_problems']:
+            print("\n📖 PROBLEMAS DE SEGMENTAÇÃO:")
+            for issue in problems['segmentation']['issues']:
+                print(f"   ⚠️  {issue}")
+                total_problems += 1
+        
+        # Pontuação geral
+        if problems['punctuation']['has_problems']:
+            print("\n📝 OUTROS PROBLEMAS DE PONTUAÇÃO:")
+            for issue in problems['punctuation']['issues']:
+                print(f"   ⚠️  {issue}")
+                total_problems += 1
+        
+        # Resumo
+        if total_problems == 0:
+            print("\n✅ NENHUM PROBLEMA DETECTADO!")
+        else:
+            print(f"\n📊 RESUMO: {total_problems} problema(s) detectado(s)")
+        
+        print(f"{'='*60}\n")
+    
+    def _find_homophones(self, text: str) -> List[Dict]:
+        """Detecta homófonos problemáticos"""
+        words = re.findall(r'\w+', text.lower())
+        found_homophones = []
+        
+        for word in words:
+            if word in self.homophones:
+                alternatives = self.homophones[word]
+                found_homophones.append({
+                    'word': word,
+                    'alternatives': alternatives,
+                    'context': text
+                })
+        
+        return found_homophones
+    
+    def _check_segmentation(self, text: str) -> Dict:
+        """Verifica problemas de segmentação de palavras"""
+        issues = []
+        text_lower = text.lower()
+        
+        # Verificar padrões problemáticos específicos
+        for pattern in self.segmentation_patterns:
+            if re.search(pattern, text_lower):
+                if "eat" in text_lower:
+                    issues.append("Frase ambígua detectada - vírgula ausente pode mudar sentido (ex: 'eat grandma' vs 'eat, grandma')")
+        
+        # Palavras muito longas (possível junção)
+        words = text.split()
+        long_words = [w for w in words if len(re.sub(r'[^\w]', '', w)) > 15]
+        if long_words:
+            issues.append(f"Palavras muito longas: {', '.join(long_words)}")
+        
+        return {
+            'issues': issues,
+            'has_problems': len(issues) > 0
+        }
+    
+    def _check_punctuation_problems(self, text: str) -> Dict:
+        """Verifica problemas gerais de pontuação"""
+        issues = []
+        
+        # Texto sem pontuação final
+        if not re.search(r'[.!?]$', text.strip()):
+            issues.append("Frase sem pontuação final")
+        
+        # Múltiplas frases sem separação
+        if len(text.split()) > 10 and not re.search(r'[.!?,;]', text):
+            issues.append("Texto longo sem pontuação interna")
+        
+        return {
+            'issues': issues,
+            'has_problems': len(issues) > 0
+        }
+    
+    # Mantém métodos originais para compatibilidade
     def identify_problems(self, text: str) -> List[str]:
         """
         Identifica problemas potenciais para PLN no texto transcrito
