@@ -152,8 +152,7 @@ class NLPAnalyzer:
             print("\n📖 PROBLEMA: ERROS DE SEGMENTAÇÃO/PONTUAÇÃO")
             print("━" * 50)
             print("📖 EXPLICAÇÃO:")
-            print("   Sistemas de reconhecimento de fala raramente inserem pontuação")
-            print("   corretamente ou podem omitir vírgulas essenciais. Isso causa:")
+            print("   A ausência de pontuação correta pode causar:")
             print("   • Mudança radical no significado das frases")
             print("   • Dificuldade na análise sintática (parsing)")
             print("   • Problemas na segmentação de sentenças")
@@ -179,15 +178,8 @@ class NLPAnalyzer:
                 print("   • Análise de dependência sintática falha completamente")
                 print("   • Sistemas de tradução produzem frases incorretas/ofensivas")
                 print("   • Extração de informação identifica ações erradas")
-                print("   • Classificação de sentimento pode detectar violência")
                 print("   • Sistemas de diálogo podem gerar respostas inadequadas")
                 print()
-                print("   💡 SOLUÇÕES PARA PLN:")
-                print("   • Modelos neurais de pontuação automática")
-                print("   • Análise de pausas e entonação no áudio original")
-                print("   • Correção gramatical baseada em contexto")
-                print("   • Detecção de ambiguidade sintática")
-            
             print("🔍 PROBLEMAS DE SEGMENTAÇÃO DETECTADOS:")
             for issue in problems['segmentation']['issues']:
                 print(f"   ⚠️  {issue}")
@@ -217,25 +209,6 @@ class NLPAnalyzer:
         if total_problems == 0:
             print("✅ NENHUM PROBLEMA CRÍTICO DETECTADO!")
             print("   O texto está adequado para processamento por sistemas de PLN.")
-        else:
-            print(f"⚠️  {total_problems} PROBLEMA(S) DETECTADO(S)")
-            print("   ⚡ RECOMENDAÇÕES PARA PLN:")
-            
-            if problems['homophones']:
-                print("   • Implementar correção contextual de homófonos")
-                print("   • Usar modelos de linguagem para desambiguação")
-                
-            if problems['segmentation']['has_problems']:
-                print("   • Aplicar pós-processamento para inserção de pontuação")
-                print("   • Utilizar modelos neurais de pontuação automática")
-                print("   • Implementar análise de pausas no áudio original")
-                
-                # Recomendação específica para o caso "grandma"
-                if any("CASO CLÁSSICO" in issue for issue in problems['segmentation']['issues']):
-                    print("   • ⚠️ CRÍTICO: Implementar detecção de ambiguidade sintática")
-                    print("   • Usar análise de dependência para validar estruturas")
-        
-        print(f"\n{'='*60}\n")
     
     def _find_homophones(self, text: str) -> List[Dict]:
         """Detecta homófonos problemáticos"""
